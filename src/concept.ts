@@ -1,4 +1,4 @@
-import { AddChanges, IComponent } from "@benbraide/inlinejs";
+import { AddChanges, GetGlobal, IComponent } from "@benbraide/inlinejs";
 
 import { IScreenConcept, IScreenOrientation, IScreenPoint, IScreenScrollParams, IScreenSize, ScreenSizeMarksType } from "./types";
 
@@ -12,19 +12,19 @@ const DefaultScreenSizeMarkList: Array<ScreenSizeMarksType> = [
 ];
 
 export class ScreenConcept implements IScreenConcept{
-    private id_: string;
-    private size_: IScreenSize;
+    protected id_: string;
+    protected size_: IScreenSize;
 
-    private scrollOffset_: IScreenPoint<number>;
-    private scrollTrend_: IScreenOrientation<-1 | 0 | 1>;
-    private scrollStreak_: IScreenOrientation<number>;
+    protected scrollOffset_: IScreenPoint<number>;
+    protected scrollTrend_: IScreenOrientation<-1 | 0 | 1>;
+    protected scrollStreak_: IScreenOrientation<number>;
 
-    private listeners_ = {
+    protected listeners_ = {
         size: <(() => void) | null>null,
         scroll: <(() => void) | null>null,
     };
 
-    public constructor(private component_?: IComponent, private sizeMarkList_?: Array<ScreenSizeMarksType>){
+    public constructor(protected component_?: IComponent, protected sizeMarkList_?: Array<ScreenSizeMarksType>){
         this.id_ = (this.component_?.GenerateUniqueId('screen_proxy_') || '');
         this.sizeMarkList_ = (this.sizeMarkList_ || DefaultScreenSizeMarkList);
         
@@ -109,8 +109,7 @@ export class ScreenConcept implements IScreenConcept{
     }
 
     public GetScrollOffset(){
-        this.component_?.GetBackend().changes.AddGetAccess(`${this.id_}.scrollOffset`);
-        return {...this.scrollOffset_};
+        return this.PassValue_('scrollOffset', {...this.scrollOffset_});
     }
 
     public GetScrollPercentage(){
@@ -118,23 +117,19 @@ export class ScreenConcept implements IScreenConcept{
     }
 
     public GetScrollTrend(){
-        this.component_?.GetBackend().changes.AddGetAccess(`${this.id_}.scrollTrend`);
-        return {...this.scrollTrend_};
+        return this.PassValue_('scrollTrend', {...this.scrollTrend_});
     }
 
     public GetScrollStreak(){
-        this.component_?.GetBackend().changes.AddGetAccess(`${this.id_}.scrollStreak`);
-        return {...this.scrollStreak_};
+        return this.PassValue_('scrollStreak', {...this.scrollStreak_});
     }
 
     public GetSize(){
-        this.component_?.GetBackend().changes.AddGetAccess(`${this.id_}.size`);
-        return this.size_;
+        return this.PassValue_('size', {...this.size_});
     }
 
     public GetSizeMarks(){
-        this.component_?.GetBackend().changes.AddGetAccess(`${this.id_}.sizeMarks`);
-        return this.FindSizeMarks_(this.size_.width);
+        return this.PassValue_('sizeMarks', this.FindSizeMarks_(this.size_.width));
     }
 
     public GetBreakpoint(){
@@ -146,10 +141,15 @@ export class ScreenConcept implements IScreenConcept{
     }
 
     public GetSizeMarkLevel(mark: string | number){
-        return DefaultScreenSizeMarkList.findIndex(([bp, cp]) => ((typeof mark === 'string') ? (mark === bp) : (mark <= cp)));
+        return this.sizeMarkList_!.findIndex(([bp, cp]) => ((typeof mark === 'string') ? (mark === bp) : (mark <= cp)));
     }
 
-    private HandleResize_(){
+    protected PassValue_<T>(prop: string, value: T){
+        GetGlobal().GetCurrentProxyAccessStorage()?.Put(`${this.id_}.${prop}`);
+        return value;
+    }
+
+    protected HandleResize_(){
         AddChanges('set', `${this.id_}.size`, 'size', this.component_?.GetBackend().changes);
         
         let [oldBreakpoint, oldCheckpoint] = this.FindSizeMarks_(this.size_.width);
@@ -163,7 +163,7 @@ export class ScreenConcept implements IScreenConcept{
         }
     }
 
-    private HandleScroll_(){
+    protected HandleScroll_(){
         let offset = ScreenConcept.GetScrollOffset();
         if (offset.x == this.scrollOffset_.x && offset.y == this.scrollOffset_.y){
             return;//No changes
@@ -211,7 +211,7 @@ export class ScreenConcept implements IScreenConcept{
         }
     }
 
-    private FindSizeMarks_(width: number): [string, number]{
+    protected FindSizeMarks_(width: number): [string, number]{
         for (let marks of this.sizeMarkList_!){
             if (width < marks[1]){//Return found
                 return [...marks];
