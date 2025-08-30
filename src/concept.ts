@@ -145,7 +145,8 @@ export class ScreenConcept implements IScreenConcept{
     }
 
     protected PassValue_<T>(prop: string, value: T){
-        GetGlobal().GetCurrentProxyAccessStorage()?.Put(`${this.id_}.${prop}`);
+        const componentId = this.component_?.GetId();
+        componentId && GetGlobal().GetCurrentProxyAccessStorage()?.Put(componentId, `${this.id_}.${prop}`);
         return value;
     }
 
